@@ -714,11 +714,16 @@ public:
             string input;
             int choice;
             cout << "\n[Admin Menu - " << username << "]\n";
-            cout << "1. View Logs\n2. View Table Availability\n3. Create Receptionist Account\n4. Exit\nChoice: ";
+            cout << "1. View Logs\n";
+            cout << "2. View Table Availability\n";
+            cout << "3. Update Reservation\n";
+            cout << "4. Cancel Reservation\n";
+            cout << "5. Create Receptionist Account\n";
+            cout << "6. Exit\nChoice: ";
             getline(cin, input);
 
-            if (!validateNumericInput(input, choice, 1, 4)) {
-                cout << "Invalid choice. Please enter a single number between 1 and 4 (e.g., 1, not 1a, 1.1, or 1 1).\n";
+            if (!validateNumericInput(input, choice, 1, 6)) {
+                cout << "Invalid choice. Please enter a single number between 1 and 6 (e.g., 1, not 1a, 1.1, or 1 1).\n";
                 continue;
             }
 
@@ -730,6 +735,119 @@ public:
                     ReservationManager::getInstance().viewTableAvailability();
                     break;
                 case 3: {
+                    // Implementation for updating a reservation
+                    string customerName, reservationId, newId, newName, newPhone, newDate, newTime, newPartySizeInput, newTableChoiceInput;
+                    int newPartySize, newTableChoice;
+
+                    cout << "Enter customer name: ";
+                    getline(cin, customerName);
+                    
+                    if (!ReservationManager::getInstance().hasReservations(customerName)) {
+                        cout << "No reservations found for this customer.\n";
+                        break;
+                    }
+
+                    while (true) {
+                        cout << "Enter reservation ID to update (e.g., ID 1A): ";
+                        getline(cin, reservationId);
+                        try {
+                            if (!validateReservationId(reservationId)) {
+                                throw ReservationException("Invalid reservation ID format. Use 'ID <number>A', e.g., ID 1A.");
+                            }
+                            if (!ReservationManager::getInstance().hasReservations(customerName)) {
+                                throw ReservationException("No reservation to update.");
+                            }
+                            break;
+                        } catch (const ReservationException& ex) {
+                            cout << "Error: " << ex.what() << endl;
+                        }
+                    }
+
+                    // Show current reservation
+                    ReservationManager::getInstance().viewCustomerReservations(customerName);
+
+                    // Get update information
+                    cout << "Enter new ID (or 0 to keep current): ";
+                    getline(cin, newId);
+                    cout << "Enter new name (or 0 to keep current): ";
+                    getline(cin, newName);
+                    
+                    while (true) {
+                        cout << "Enter new phone number (e.g., 123-456-7890, or 0 to keep current): ";
+                        getline(cin, newPhone);
+                        if (newPhone == "0" || validatePhoneNumber(newPhone)) break;
+                        cout << "Error: Invalid phone number format. Use XXX-XXX-XXXX.\n";
+                    }
+
+                    while (true) {
+                        cout << "Enter new party size (or 0 to keep current): ";
+                        getline(cin, newPartySizeInput);
+                        if (newPartySizeInput == "0") {
+                            newPartySize = 0;
+                            break;
+                        }
+                        if (validateNumericInput(newPartySizeInput, newPartySize, 1, INT_MAX)) break;
+                        cout << "Error: Invalid party size.\n";
+                    }
+
+                    while (true) {
+                        cout << "Enter new date (YYYY-MM-DD, or 0 to keep current): ";
+                        getline(cin, newDate);
+                        if (newDate == "0" || validateDate(newDate)) break;
+                        cout << "Error: Invalid date format.\n";
+                    }
+
+                    while (true) {
+                        cout << "Enter new time (HH:MM, or 0 to keep current): ";
+                        getline(cin, newTime);
+                        if (newTime == "0" || validateTime(newTime, newDate != "0" ? newDate : CURRENT_DATE)) break;
+                        cout << "Error: Invalid time format.\n";
+                    }
+
+                    while (true) {
+                        cout << "Table options: 0 to keep current, or enter table number (1-10):\n";
+                        ReservationManager::getInstance().viewTableAvailability();
+                        cout << "Choice: ";
+                        getline(cin, newTableChoiceInput);
+                        if (validateNumericInput(newTableChoiceInput, newTableChoice, 0, 10)) break;
+                        cout << "Error: Invalid table choice.\n";
+                    }
+
+                    try {
+                        int newTableIndex = (newTableChoice != 0) ? newTableChoice - 1 : -1;
+                        ReservationManager::getInstance().updateReservation(reservationId, customerName, 
+                                                                          newId, newName, newPhone, newPartySize, 
+                                                                          newDate, newTime, newTableIndex);
+                        cout << "Reservation updated successfully.\n";
+                    } catch (const ReservationException& ex) {
+                        cout << "Error: " << ex.what() << endl;
+                    }
+                    break;
+                }
+                case 4: {
+                    // Implementation for canceling a reservation
+                    string customerName, reservationId;
+                    
+                    cout << "Enter customer name: ";
+                    getline(cin, customerName);
+                    
+                    if (!ReservationManager::getInstance().hasReservations(customerName)) {
+                        cout << "No reservations found for this customer.\n";
+                        break;
+                    }
+
+                    cout << "Enter reservation ID to cancel (e.g., ID 1A): ";
+                    getline(cin, reservationId);
+
+                    try {
+                        ReservationManager::getInstance().cancelReservation(reservationId, customerName);
+                        cout << "Reservation cancelled successfully.\n";
+                    } catch (const ReservationException& ex) {
+                        cout << "Error: " << ex.what() << endl;
+                    }
+                    break;
+                }
+                case 5: {
                     string recUsername, recPassword;
                     while (true) {
                         cout << "Enter new receptionist username: ";
@@ -746,18 +864,20 @@ public:
                     cout << "Receptionist account created.\n";
                     break;
                 }
-                case 4: {
-                    string logout;
-                    cout << "Logout? Yes or No: ";
-                    getline(cin, logout);
-                    if (logout == "Yes" || logout == "yes") {
-                        return true; // Logout
-                    }
-                    break; // Continue in menu
-                }
+                case 6: {
+    string logout;
+    cout << "Logout? (Y/N or Yes/No): ";
+    getline(cin, logout);
+    // Convert to lowercase for case-insensitive comparison
+    transform(logout.begin(), logout.end(), logout.begin(), ::tolower);
+    if (logout == "yes" || logout == "y") {
+        return true; // Logout
+    }
+    break;
+}
             }
         }
-        return false; // Default: continue in menu
+        return false;
     }
 };
 
